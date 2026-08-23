@@ -9,12 +9,13 @@ services:
       MARIADB_PASSWORD: ${DMM_DB_PASSWORD}
       MARIADB_ROOT_PASSWORD: ${DMM_DB_ROOT_PASSWORD}
     volumes:
-      - /volume1/docker/dmm/mysql:/var/lib/mysql
+      - dmm_mysql:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 30s
 
   dmm-redis:
     image: redis:7-alpine
@@ -22,12 +23,13 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
-      - /volume1/docker/dmm/redis:/data
+      - dmm_redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 10
+      start_period: 10s
 
   dmm-migrate:
     image: ghcr.io/tartho77/dmm-decypharr:latest
@@ -61,7 +63,7 @@ services:
       DECYPHARR_TOKEN: ${DECYPHARR_TOKEN}
       NEXT_PUBLIC_ANALYTICS_ENABLED: "false"
     volumes:
-      - /volume1/docker/dmm/data:/app/.data
+      - dmm_data:/app/.data
     depends_on:
       dmm-db:
         condition: service_healthy
@@ -69,3 +71,8 @@ services:
         condition: service_healthy
       dmm-migrate:
         condition: service_completed_successfully
+
+volumes:
+  dmm_mysql:
+  dmm_redis:
+  dmm_data:
