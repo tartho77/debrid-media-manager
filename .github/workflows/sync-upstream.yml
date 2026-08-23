@@ -1,0 +1,50 @@
+name: Sync upstream DMM
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/debridmediamanager/debrid-media-manager.git
+          git fetch upstream main
+
+      - name: Merge upstream and push
+        id: merge
+        run: |
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            echo "Fork is already up to date."
+            exit 0
+          fi
+
+          git merge --no-edit upstream/main
+          git push origin main
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build updated custom image
+        if: steps.merge.outputs.updated == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run dmm-decypharr-build.yml --ref main
