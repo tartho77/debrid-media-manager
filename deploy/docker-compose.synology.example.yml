@@ -1,0 +1,71 @@
+services:
+  dmm-db:
+    image: mariadb:11.4
+    container_name: dmm-db
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: dmm
+      MARIADB_USER: dmm
+      MARIADB_PASSWORD: ${DMM_DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DMM_DB_ROOT_PASSWORD}
+    volumes:
+      - /volume1/docker/dmm/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  dmm-redis:
+    image: redis:7-alpine
+    container_name: dmm-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - /volume1/docker/dmm/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  dmm-migrate:
+    image: ghcr.io/tartho77/dmm-decypharr:latest
+    container_name: dmm-migrate
+    restart: "no"
+    environment:
+      DATABASE_URL: mysql://dmm:${DMM_DB_PASSWORD}@dmm-db:3306/dmm
+    command:
+      - sh
+      - -lc
+      - npx --yes prisma@6.5.0 migrate deploy --schema=/app/prisma/schema.prisma
+    depends_on:
+      dmm-db:
+        condition: service_healthy
+
+  dmm:
+    image: ghcr.io/tartho77/dmm-decypharr:latest
+    container_name: dmm
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: mysql://dmm:${DMM_DB_PASSWORD}@dmm-db:3306/dmm
+      DMM_ORIGIN: ${DMM_ORIGIN}
+      DMMCAST_SALT: ${DMMCAST_SALT}
+      REAL_DEBRID_OBSERVABILITY_SQLITE_PATH: /app/.data/real-debrid-observability.sqlite
+      DMM_MAX_UNCACHED_LINKS: "50"
+      REQUEST_TIMEOUT: "5000"
+      REDIS_URL: redis://dmm-redis:6379
+      DECYPHARR_URL: ${DECYPHARR_URL}
+      DECYPHARR_TOKEN: ${DECYPHARR_TOKEN}
+      NEXT_PUBLIC_ANALYTICS_ENABLED: "false"
+    volumes:
+      - /volume1/docker/dmm/data:/app/.data
+    depends_on:
+      dmm-db:
+        condition: service_healthy
+      dmm-redis:
+        condition: service_healthy
+      dmm-migrate:
+        condition: service_completed_successfully
