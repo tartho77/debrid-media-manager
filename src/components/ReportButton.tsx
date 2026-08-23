@@ -2,6 +2,7 @@ import axios from 'axios';
 import { AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import DecypharrButton from './DecypharrButton';
 
 type ReportButtonProps = {
 	hash: string;
@@ -32,6 +33,7 @@ export default function ReportButton({ hash, imdbId, userId, isShow }: ReportBut
 
 	return (
 		<>
+			<DecypharrButton hash={hash} defaultCategory={isShow ? 'sonarr' : 'radarr'} />
 			<button
 				onClick={() => setShowDialog(true)}
 				className="haptic-sm inline rounded border-2 border-red-500 bg-red-900/30 px-1 text-xs text-red-100 transition-colors hover:bg-red-800/50"
