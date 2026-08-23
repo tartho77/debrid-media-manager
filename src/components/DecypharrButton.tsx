@@ -10,6 +10,11 @@ type DecypharrButtonProps = {
 	defaultCategory: DecypharrTarget;
 };
 
+type DecypharrApiResponse = {
+	ok?: boolean;
+	error?: string;
+};
+
 export default function DecypharrButton({ hash, defaultCategory }: DecypharrButtonProps) {
 	const [showDialog, setShowDialog] = useState(false);
 	const [sendingTo, setSendingTo] = useState<DecypharrTarget | null>(null);
@@ -25,9 +30,9 @@ export default function DecypharrButton({ hash, defaultCategory }: DecypharrButt
 				body: JSON.stringify({ hash, category }),
 			});
 
-			const data = await response.json().catch(() => ({}));
+			const data = (await response.json().catch(() => ({}))) as DecypharrApiResponse;
 			if (!response.ok) {
-				throw new Error(data?.error || `Decypharr returned HTTP ${response.status}`);
+				throw new Error(data.error || `Decypharr returned HTTP ${response.status}`);
 			}
 
 			toast.success(`Sent to Decypharr as ${category === 'radarr' ? 'Radarr' : 'Sonarr'}.`);
