@@ -3,6 +3,7 @@ services:
     image: mariadb:11.4
     container_name: dmm-db
     restart: unless-stopped
+    command: --innodb-use-native-aio=0
     environment:
       MARIADB_DATABASE: dmm
       MARIADB_USER: dmm
@@ -14,8 +15,8 @@ services:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 30
+      start_period: 60s
 
   dmm-redis:
     image: redis:7-alpine
