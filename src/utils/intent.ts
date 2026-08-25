@@ -37,9 +37,14 @@ export const buildPlayerIntent = (
 	fallbackUrl: string
 ): string => {
 	if (os === 'android') {
-		return `intent://${downloadUrl.replace('https://', '')}#Intent;type=video/any;scheme=https${
-			player !== 'chooser' ? ';package=' + player : ''
-		};end`;
+		// Without a fallback, an intent Chrome declines to launch — the package
+		// is not installed, or the navigation did not carry a user gesture —
+		// goes nowhere at all and leaves the tab blank. The fallback turns that
+		// dead end into the stream itself, playing in the browser.
+		const parts = ['type=video/any', 'scheme=https'];
+		if (player !== 'chooser') parts.push(`package=${player}`);
+		parts.push(`S.browser_fallback_url=${encodeURIComponent(fallbackUrl)}`);
+		return `intent://${downloadUrl.replace('https://', '')}#Intent;${parts.join(';')};end`;
 	}
 	if (os === 'ios' || os === 'mac') {
 		return `${player}://${downloadUrl.replace('https://', '')}`;
@@ -100,13 +105,18 @@ const getTbInstantIntent = async (
 	try {
 		let streamUrl = '';
 		let cachedPathError: unknown;
+		// Watch is "play this now", not "add this to my library" - the Real-Debrid
+		// path already adds and deletes around a single play, and this matches it.
+		// The minted link outlives the library entry, so nothing is lost.
+		const release = { releaseIfAdded: true };
 		try {
 			if (fileName) {
 				try {
 					[streamUrl] = await getFileByNameTorBoxStreamUrl(
 						tbKey,
 						hash,
-						basename(fileName)
+						basename(fileName),
+						release
 					);
 				} catch {
 					// The name came from a different service's file listing, so
@@ -115,7 +125,7 @@ const getTbInstantIntent = async (
 				}
 			}
 			if (!streamUrl) {
-				[streamUrl] = await getBiggestFileTorBoxStreamUrl(tbKey, hash);
+				[streamUrl] = await getBiggestFileTorBoxStreamUrl(tbKey, hash, release);
 			}
 		} catch (e) {
 			// Both cached lookups check TorBox's global cache before the user's
