@@ -1,3 +1,4 @@
+import { CAST_ADDON_VERSIONS } from '@/utils/castAddonVersions';
 import { NextApiRequest, NextApiResponse } from 'next';
 
 export const premiumizeCastManifest = (withCatalogs: boolean) => ({
@@ -9,11 +10,15 @@ export const premiumizeCastManifest = (withCatalogs: boolean) => ({
 		'Cast your preferred Debrid Media Manager streams to your Stremio device using Premiumize; supports Anime, TV shows and Movies!',
 	logo: 'https://static.debridmediamanager.com/yellowlogo.jpeg',
 	background: 'https://static.debridmediamanager.com/background.png',
-	version: '0.0.1',
+	version: CAST_ADDON_VERSIONS.premiumize,
 	resources: withCatalogs
-		? ['catalog', { name: 'stream', types: ['movie', 'series'], idPrefixes: ['tt'] }]
+		? [
+				'catalog',
+				{ name: 'stream', types: ['movie', 'series'], idPrefixes: ['tt'] },
+				{ name: 'meta', types: ['other'], idPrefixes: ['dmm-pm'] },
+			]
 		: [{ name: 'stream', types: ['movie', 'series'], idPrefixes: ['tt'] }],
-	types: withCatalogs ? ['movie', 'series'] : ['movie', 'series'],
+	types: withCatalogs ? ['movie', 'series', 'other'] : ['movie', 'series'],
 	catalogs: withCatalogs
 		? [
 				{
@@ -26,6 +31,12 @@ export const premiumizeCastManifest = (withCatalogs: boolean) => ({
 					id: 'pm-casted-shows',
 					name: 'DMM PM TV Shows',
 					type: 'series',
+					extra: [{ name: 'skip' }],
+				},
+				{
+					id: 'pm-casted-other',
+					name: 'DMM PM Library',
+					type: 'other',
 					extra: [{ name: 'skip' }],
 				},
 			]
