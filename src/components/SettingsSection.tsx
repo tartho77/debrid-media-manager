@@ -1,4 +1,4 @@
-import { useSponsor } from '@/hooks/useSponsor';
+import { sponsorHeaders, useSponsor } from '@/hooks/useSponsor';
 import { otherStreamsLimitOptions } from '@/utils/sponsorLimits';
 import { AlertTriangle, Check, Link2, Settings } from 'lucide-react';
 import { useState } from 'react';
@@ -8,6 +8,7 @@ import {
 	getLocalStorageBoolean,
 	getLocalStorageItemOrDefault,
 	getLocalStorageString,
+	hideRdBlockedTorrentsDefault,
 } from '../utils/browserStorage';
 import {
 	defaultAvailabilityCheckLimit,
@@ -117,17 +118,9 @@ export const SettingsSection = () => {
 	const [hideCastOption, setHideCastOption] = useState(() =>
 		getLocalStorageBoolean('settings:hideCastOption', false)
 	);
-	const [hideRdBlockedTorrents, setHideRdBlockedTorrents] = useState(() => {
-		if (typeof localStorage === 'undefined') return defaultHideRdBlockedTorrents;
-		const stored = localStorage.getItem('settings:hideRdBlockedTorrents');
-		if (stored !== null) return stored === 'true';
-		const hasRd = !!localStorage.getItem('rd:accessToken');
-		const hasAd = !!localStorage.getItem('ad:apiKey');
-		const hasTb = !!localStorage.getItem('tb:apiKey');
-		const hasPm =
-			!!localStorage.getItem('pm:accessToken') || !!localStorage.getItem('pm:apiKey');
-		return hasRd && !hasAd && !hasTb && !hasPm;
-	});
+	const [hideRdBlockedTorrents, setHideRdBlockedTorrents] = useState(() =>
+		hideRdBlockedTorrentsDefault(defaultHideRdBlockedTorrents)
+	);
 
 	const handlePlayerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		const value = e.target.value;
@@ -159,7 +152,10 @@ export const SettingsSection = () => {
 			updatePromises.push(
 				fetch('/api/stremio/cast/updateSizeLimits', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					// Same as the TorBox/AllDebrid/Premiumize clients: without the
+					// sponsor token the server applies the non-sponsor ceiling and
+					// rejects the raised limit this section just offered.
+					headers: { 'Content-Type': 'application/json', ...sponsorHeaders() },
 					body: JSON.stringify({
 						clientId,
 						clientSecret,
