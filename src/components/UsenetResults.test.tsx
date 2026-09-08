@@ -12,14 +12,17 @@ const downloadCleanNzbMock = vi.fn();
 vi.mock('@/utils/nzbDownload', () => ({
 	downloadCleanNzb: (...args: unknown[]) => downloadCleanNzbMock(...args),
 }));
-vi.mock('react-hot-toast', () => ({
-	__esModule: true,
-	default: {
+vi.mock('react-hot-toast', () => {
+	const toastMock = {
 		success: (...args: unknown[]) => toastSuccess(...args),
 		error: (...args: unknown[]) => toastError(...args),
 		loading: (...args: unknown[]) => toastLoading(...args),
-	},
-}));
+	};
+	// followNzb2rdTransfer imports the named export, and reaches it from a timer
+	// rather than from a click, so leaving it out only fails once the poll
+	// happens to fire before this file tears its mocks down.
+	return { __esModule: true, default: toastMock, toast: toastMock };
+});
 
 // A Usenet send is the same transfer as a TB → RD one from the user's side, so
 // it wears the same `X → RD` prefix and rides one toast from submit onwards.
@@ -400,6 +403,29 @@ describe('UsenetResults', () => {
 		expect(searchCalls(fetchMock)[0][0]).toBe('/api/nzb2rd/search?imdbId=tt1418646');
 		expect(renderedTitles()).toEqual(['Alpha.Release.2160p', 'Bravo.Release.1080p']);
 		expect(screen.getByText('9.00 GB')).toBeInTheDocument();
+	});
+
+	// The row used to wear the indexer's name on a badge, which told every
+	// visitor which private tracker the account is on. The name stays server
+	// side: the row shows the release and nothing about where it came from.
+	it('never names the indexer that supplied a release', async () => {
+		mockSearch([
+			{
+				id: 'ds:a',
+				title: 'Bravo.Release.1080p',
+				size: 3 * 1024 ** 3,
+				indexer: 'DrunkenSlug',
+			},
+			{ id: 'ah:b', title: 'Alpha.Release.2160p', size: 9 * 1024 ** 3, indexer: 'altHUB' },
+		]);
+		render(<UsenetResults imdbId="tt1418646" rdKey="rd-key" />);
+
+		await userEvent.click(screen.getByRole('button', { name: /usenet/i }));
+
+		await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+		expect(renderedTitles()).toEqual(['Alpha.Release.2160p', 'Bravo.Release.1080p']);
+		expect(screen.queryByText(/drunkenslug/i)).not.toBeInTheDocument();
+		expect(screen.queryByText(/althub/i)).not.toBeInTheDocument();
 	});
 
 	it('passes the season through for a show', async () => {
