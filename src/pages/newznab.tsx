@@ -1,6 +1,7 @@
 import { ApiKeyField, Card, Field } from '@/components/IndexerSetup';
 import { Logo } from '@/components/Logo';
 import { useSponsor } from '@/hooks/useSponsor';
+import { GATEKEEPER_URL } from '@/utils/gatekeeper';
 import { ArrowLeft, Handshake, KeyRound, Lock, ShieldCheck } from 'lucide-react';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -9,24 +10,25 @@ import { Toaster } from 'react-hot-toast';
 
 // Setup guide for pointing Prowlarr / Sonarr / Radarr at DMM's Newznab endpoint.
 //
-// The sponsor check below is COSMETIC ONLY. It reads the unverified sponsor
-// token out of localStorage, so anyone can flip it by hand; the real gate is
-// `/api/newznab/api` itself, which verifies the DMM API key server-side on
-// every request. This page only decides what to *show*, never what to allow.
+// The setup is shown to everyone. The real gate is `/api/newznab/api` itself,
+// which verifies the DMM API key server-side on every request, so withholding
+// the URL and the category list only hid the feature from the people who might
+// have sponsored for it. The sponsor check below decides whether to add the
+// pitch above the guide, and nothing else.
 //
-// The API key itself is read from `dmm:apiKey`, which the browser keeps once a
-// sponsorship has been linked in Settings. Flipping the sponsor token by hand
-// therefore reveals nothing: an unlinked browser has no key to show.
+// It is COSMETIC in any case: it reads the unverified sponsor token out of
+// localStorage, which anyone can flip by hand. That reveals nothing, because
+// the API key comes from `dmm:apiKey`, which is only written once a real key
+// has been accepted in Settings, and an unlinked browser has none to show.
 
 const PRODUCTION_ORIGIN = 'https://debridmediamanager.com';
-const GATEKEEPER_URL = 'https://gatekeeper.debridmediamanager.com';
 
 /** The path segment *arr appends to the indexer URL. */
 const API_PATH = '/api';
 
 /** Per-key limits enforced by the endpoint, stated here so nobody has to find them by tripping them. */
 const LIMITS = [
-	{ label: '30 searches', per: 'per minute' },
+	{ label: '20 searches', per: 'per minute' },
 	{ label: '10 grabs', per: 'per minute' },
 	{ label: '150 grabs', per: 'per day' },
 ];
@@ -60,7 +62,21 @@ const SEARCH_MODES = [
 	},
 ];
 
-function SetupGuide({ indexerUrl, apiKey }: { indexerUrl: string; apiKey: string | null }) {
+/**
+ * `needsKeySource` is true only when this browser holds a sponsorship but no
+ * key: the sponsor pitch is hidden then, so this note is the one place left to
+ * say where a key comes from. A visitor already has that sentence in the pitch
+ * above, and repeating it here said the same thing twice on one page.
+ */
+function SetupGuide({
+	indexerUrl,
+	apiKey,
+	needsKeySource,
+}: {
+	indexerUrl: string;
+	apiKey: string | null;
+	needsKeySource: boolean;
+}) {
 	return (
 		<>
 			<Card title="1. Paste this into Prowlarr / Sonarr / Radarr">
@@ -78,18 +94,27 @@ function SetupGuide({ indexerUrl, apiKey }: { indexerUrl: string; apiKey: string
 				<div className="mt-3 flex gap-2 rounded border-2 border-yellow-500/30 p-3 text-xs text-gray-300">
 					<KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
 					<span>
-						The key is the same 64-character DMM API key you get by connecting your
-						GitHub account on{' '}
-						<a
-							href={GATEKEEPER_URL}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="underline decoration-dotted"
-						>
-							gatekeeper
-						</a>
-						. Once you have linked it in Settings this browser remembers it, and the
-						copy button above hands over the whole key without putting it on screen.
+						The same 64-character DMM API key works for the torrent indexer too.{' '}
+						{needsKeySource ? (
+							<>
+								Get it by connecting your GitHub account on{' '}
+								<a
+									href={GATEKEEPER_URL}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="underline decoration-dotted"
+								>
+									gatekeeper
+								</a>
+								, then paste it in{' '}
+								<Link href="/settings" className="underline decoration-dotted">
+									Settings
+								</Link>{' '}
+								to fill it in here.
+							</>
+						) : (
+							'This browser remembers it once linked, and the copy button above hands over the whole key without putting it on screen.'
+						)}
 					</span>
 				</div>
 			</Card>
@@ -180,11 +205,12 @@ function SetupGuide({ indexerUrl, apiKey }: { indexerUrl: string; apiKey: string
 
 function SponsorPitch() {
 	return (
-		<Card title="Sponsors only">
+		<Card title="A sponsor feature">
 			<p className="text-gray-300">
-				The Usenet indexer is a sponsor feature. It answers Prowlarr, Sonarr and Radarr as a
-				Newznab indexer, so your *arr stack can search DMM directly and hand grabs straight
-				to your Real-Debrid account.
+				The Usenet indexer answers Prowlarr, Sonarr and Radarr as a Newznab indexer, so your
+				*arr stack can search DMM directly and hand grabs straight to your Real-Debrid
+				account. The whole setup is written out below; the one thing it needs that this
+				browser does not have yet is a DMM API key, which comes with a sponsorship.
 			</p>
 
 			<div className="mt-4 rounded border-2 border-pink-500/30 p-4 text-center">
@@ -195,48 +221,22 @@ function SponsorPitch() {
 				<div className="text-sm text-gray-300">
 					<a
 						className="text-blue-300 underline hover:text-blue-200"
-						href="https://github.com/sponsors/debridmediamanager"
+						href={GATEKEEPER_URL}
 						target="_blank"
 						rel="noopener noreferrer"
 					>
-						Github
-					</a>{' '}
-					|{' '}
-					<a
-						className="text-blue-300 underline hover:text-blue-200"
-						href="https://www.patreon.com/debridmediamanager"
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						Patreon
-					</a>{' '}
-					|{' '}
-					<a
-						className="text-blue-300 underline hover:text-blue-200"
-						href="https://paypal.me/yowmamasita"
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						Paypal
+						gatekeeper
 					</a>
 				</div>
 			</div>
 
 			<p className="mt-4 text-sm text-gray-400">
-				Already sponsoring? Paste your DMM API key in{' '}
+				Get your key by connecting your GitHub account there, then paste it in{' '}
 				<Link href="/settings" className="text-blue-300 underline hover:text-blue-200">
 					Settings
 				</Link>{' '}
-				to link this browser. Get the key by connecting your GitHub account on{' '}
-				<a
-					href={GATEKEEPER_URL}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="text-blue-300 underline hover:text-blue-200"
-				>
-					gatekeeper
-				</a>
-				.
+				to link this browser. Already sponsoring on another machine? It is the same key on
+				this one, so there is nothing to pay twice.
 			</p>
 		</Card>
 	);
@@ -284,11 +284,12 @@ export default function NewznabSetupPage() {
 					</p>
 				</header>
 
-				{isSponsor ? (
-					<SetupGuide indexerUrl={indexerUrl} apiKey={apiKey} />
-				) : (
-					<SponsorPitch />
-				)}
+				{isSponsor ? null : <SponsorPitch />}
+				<SetupGuide
+					indexerUrl={indexerUrl}
+					apiKey={apiKey}
+					needsKeySource={isSponsor && !apiKey}
+				/>
 			</div>
 		</div>
 	);

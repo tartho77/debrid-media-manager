@@ -140,7 +140,7 @@ Content-Type: application/json
 ```json
 {
 	"imdbId": "tt1234567",
-	"limit": 10, // Optional: max results, default: 5, max: 100
+	"limit": 10, // Optional: max results, default and max: 10 (higher values are clamped)
 	"sizeFilters": {
 		"min": 5, // Optional: minimum size in GB (inclusive)
 		"max": 50 // Optional: maximum size in GB (inclusive)
@@ -209,7 +209,7 @@ Content-Type: application/json
 | 401    | `Missing x-api-key header`                                              | No API key provided                   |
 | 401    | `Invalid or expired API key`                                            | API key doesn't exist or is expired   |
 | 400    | `Invalid IMDB ID format`                                                | IMDB ID doesn't match `tt\d+` pattern |
-| 400    | `Limit must be a number between 1 and 100`                              | Invalid limit value                   |
+| 400    | `Limit must be a number of at least 1`                                  | Invalid limit value                   |
 | 400    | `sizeFilters.min cannot be greater than sizeFilters.max`                | Invalid size range                    |
 | 400    | `substringFilters must contain at least one of: blacklist or whitelist` | Empty substringFilters object         |
 | 405    | `Method not allowed`                                                    | Non-POST request                      |
@@ -413,8 +413,13 @@ keys.forEach((key) => {
     - Recommended: 30-90 days for regular use
 
 4. **Rate Limiting**:
-    - Consider implementing rate limiting on the hash search endpoint
-    - Monitor for abuse
+    - Enforced per client IP, before the API key is checked: 20 requests per
+      minute across `hashes-by-imdb`, `search-torrents`, `show-info` and
+      `resolve-tmdb`, which share the `zurg` bucket
+      (`RATE_LIMIT_CONFIGS`, `src/services/rateLimit/middlewareRateLimiter.ts`)
+    - `register-api-key` is separate and far tighter: 1 request per 10 seconds
+    - An exceeded budget answers `429 {"error":"Rate limit exceeded"}` with
+      `Retry-After` and the `X-RateLimit-*` headers
 
 ---
 

@@ -1,5 +1,7 @@
 import { useSponsor } from '@/hooks/useSponsor';
+import { GATEKEEPER_URL } from '@/utils/gatekeeper';
 import { Handshake, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 import { SponsorBadge } from './SponsorBadge';
 
 export function InfoSection() {
@@ -71,27 +73,22 @@ export function InfoSection() {
 						Sponsor this project&apos;s development on{' '}
 						<a
 							className="text-blue-300 underline hover:text-blue-200"
-							href="https://github.com/sponsors/debridmediamanager"
+							href={GATEKEEPER_URL}
 							target="_blank"
+							rel="noopener noreferrer"
 						>
-							Github
-						</a>{' '}
-						|{' '}
-						<a
-							className="text-blue-300 underline hover:text-blue-200"
-							href="https://www.patreon.com/debridmediamanager"
-							target="_blank"
-						>
-							Patreon
-						</a>{' '}
-						|{' '}
-						<a
-							className="text-blue-300 underline hover:text-blue-200"
-							href="https://paypal.me/yowmamasita"
-							target="_blank"
-						>
-							Paypal
+							gatekeeper
 						</a>
+						<div className="mt-1 text-xs text-gray-400">
+							Already sponsoring? Get your DMM API key there and paste it in{' '}
+							<Link
+								href="/settings"
+								className="text-blue-300 underline hover:text-blue-200"
+							>
+								Settings
+							</Link>{' '}
+							to unlock the indexers and the raised cast limits.
+						</div>
 					</div>
 				)}
 				<div className="mb-1 text-center text-sm">

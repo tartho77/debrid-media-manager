@@ -93,10 +93,10 @@ No grab bucket exists, because a grab never comes back to DMM. Keying on `shortI
 than the key string means a gatekeeper key reset does not reset the budget and one
 sponsor's whole \*arr farm shares one budget.
 
-Tighter than the Newznab endpoint's 30/min on purpose. A search here reads whole library
-pages out of the database and classifies every hash in them against the debrid caches,
-which costs DMM considerably more than fanning a Newznab query out to upstream indexers
-does. Twenty a minute is a sustained search every three seconds across a whole \*arr
+The same budget as the Newznab endpoint, though a search here costs DMM considerably
+more: it reads whole library pages out of the database and classifies every hash in them
+against the debrid caches, where a Newznab query is fanned out to upstream indexers.
+Twenty a minute is a sustained search every three seconds across a whole \*arr
 fleet; what it refuses is a burst, and a client that gets the 429 backs off on
 `Retry-After` rather than treating the indexer as broken.
 
@@ -206,7 +206,12 @@ those releases were found.
 
 ## Ordering and paging
 
-`total` is the size of the whole matching set, and a client pages until it reaches it.
+A page holds **10 items** — `MAX_LIMIT` in `src/services/torznab/xml.ts`, which is the
+same constant `caps` advertises as `<limits max="10" default="10"/>`. A larger `limit` is
+clamped, not refused. `total` is the size of the whole matching set, not of the page, so
+a client pages with `offset` until it reaches it; nothing is unreachable, it just takes
+more requests. Note that each of those requests costs a full search — there is no
+response cache on this path, and the per-sponsor budget is in **Rate limits** above.
 
 **Cached releases come first.** Measured against the live library, a plain movie search's
 first hundred results were almost entirely 24-terabyte "Top 5000 Movies Pack" style

@@ -23,6 +23,18 @@ describe('InfoSection', () => {
 		expect(userscriptLink.getAttribute('target')).toBe('_blank');
 	});
 
+	// The sponsorship block named three payment links and no way to use a
+	// sponsorship already paid for. gatekeeper is where the key comes from.
+	it('says where a sponsor gets the key that opens the features', () => {
+		render(<InfoSection />);
+
+		expect(screen.getByRole('link', { name: 'gatekeeper' })).toHaveAttribute(
+			'href',
+			'https://gatekeeper.debridmediamanager.com'
+		);
+		expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings');
+	});
+
 	it('promotes community and sponsorship resources', () => {
 		render(<InfoSection />);
 
@@ -30,15 +42,14 @@ describe('InfoSection', () => {
 		expect(
 			screen.getByRole('link', { name: /r\/debridmediamanager/i }).getAttribute('href')
 		).toContain('reddit.com');
-		expect(screen.getByRole('link', { name: 'Github' }).getAttribute('href')).toContain(
-			'github.com/sponsors'
+		expect(screen.getByRole('link', { name: 'gatekeeper' }).getAttribute('href')).toBe(
+			'https://gatekeeper.debridmediamanager.com'
 		);
-		expect(screen.getByRole('link', { name: 'Patreon' }).getAttribute('href')).toContain(
-			'patreon.com'
-		);
-		expect(screen.getByRole('link', { name: 'Paypal' }).getAttribute('href')).toContain(
-			'paypal.me'
-		);
+		for (const link of screen.getAllByRole('link')) {
+			expect(link.getAttribute('href')).not.toMatch(
+				/patreon\.com|paypal\.me|github\.com\/sponsors/
+			);
+		}
 		expect(screen.getByRole('link', { name: /Discord/i }).getAttribute('href')).toContain(
 			'discord.gg'
 		);

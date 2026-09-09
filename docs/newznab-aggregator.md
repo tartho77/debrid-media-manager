@@ -40,8 +40,9 @@ lapsed sponsor doesn't keep re-copying a "working" key forever.
 Query normalization (`normalizeSearchQuery` in `src/services/newznab/search.ts`):
 `imdbid` loses its `tt` prefix unconditionally — some upstreams return zero results for
 the prefixed form and the right ones for bare digits, which reads as a broken indexer
-rather than a malformed query. `limit` caps at 100 (matching caps), malformed params are
-dropped rather than forwarded.
+rather than a malformed query. `limit` caps at 10 (matching caps), malformed params are
+dropped rather than forwarded. The upstreams are still asked for 100 each, so the
+cached merged set stays pageable past the cap with `offset`.
 
 ## Errors — Newznab XML, HTTP 200
 
@@ -75,7 +76,7 @@ across the swarm instances, in-memory per-instance fallback.
 | Bucket           | Limit     | Keyed on                                                                                                                                            |
 | ---------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `newznabIp`      | 20 / 10s  | client IP, before auth — the cheap reject; wider than the app default because a Sonarr interactive season search bursts faster than 5/s from one IP |
-| `newznabSearch`  | 30 / min  | `sponsor:<shortId>`                                                                                                                                 |
+| `newznabSearch`  | 20 / min  | `sponsor:<shortId>`                                                                                                                                 |
 | `newznabGrab`    | 10 / min  | `sponsor:<shortId>`                                                                                                                                 |
 | `newznabGrabDay` | 150 / day | `sponsor:<shortId>`                                                                                                                                 |
 

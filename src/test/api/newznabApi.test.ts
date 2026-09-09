@@ -4,6 +4,7 @@ import { _resetUpstreamIndexersForTest } from '@/services/newznab/indexers';
 import { _resetTokenSecretForTest, encryptReleaseId } from '@/services/newznab/opaqueId';
 import { _resetUpstreamLimiterForTest, RSS_TTL_MS } from '@/services/newznab/search';
 import { getStoredNzb, putStoredNzb } from '@/services/newznab/store';
+import { RATE_LIMIT_CONFIGS } from '@/services/rateLimit/middlewareRateLimiter';
 import { repository } from '@/services/repository';
 import { createMockRequest, createMockResponse, MockResponse } from '@/test/utils/api';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -147,6 +148,13 @@ function body(res: MockResponse): string {
 	return String(res._getData());
 }
 
+/** Every item `<title>` in a feed, in order, minus the channel's own. */
+function itemTitles(res: MockResponse): string[] {
+	return [...body(res).matchAll(/<title>([^<]*)<\/title>/g)]
+		.map((match) => match[1])
+		.filter((title) => title !== 'DMM');
+}
+
 /** Every URL global fetch was called with, in order. */
 function fetchedUrls(): string[] {
 	return fetchMock.mock.calls.map(([input]) => String(input));
@@ -219,7 +227,7 @@ describe('GET /api/newznab/api caps', () => {
 	});
 
 	it('advertises the same limit the search handler caps at', async () => {
-		expect(body(await run({ t: 'caps' }))).toContain('<limits max="100" default="100"/>');
+		expect(body(await run({ t: 'caps' }))).toContain('<limits max="10" default="10"/>');
 	});
 });
 
@@ -410,6 +418,38 @@ describe('GET /api/newznab/api search', () => {
 		expect(body(res)).toContain('<title>Some.Release.2160p.WEB</title>');
 	});
 
+	it('caps a page at what the caps document promises, and pages past it', async () => {
+		// One upstream answering with more than a page's worth. The cap is a
+		// slice of the merged set, so the set itself has to exceed it before a
+		// cap can be observed at all.
+		const many = {
+			item: Array.from({ length: 25 }, (_, index) => ({
+				title: `Bulk.Release.${String(index).padStart(2, '0')}`,
+				guid: `https://first-upstream.invalid/details/bulk-${index}`,
+				pubDate: 'Mon, 17 Nov 2025 22:08:02 +0000',
+				'newznab:attr': [{ _name: 'size', _value: '1000' }],
+				enclosure: { _length: '1000' },
+			})),
+		};
+		fetchMock.mockImplementation(async (input: unknown) =>
+			jsonResponse(String(input).startsWith(FIRST_HOST) ? many : { item: [] })
+		);
+
+		const first = await run({ t: 'search', q: 'bulk', apikey: SPONSOR_KEY });
+		expect(itemTitles(first)).toHaveLength(10);
+		expect(body(first)).toContain('<newznab:response offset="0" total="25"/>');
+
+		// Still a full upstream page, so the cap cannot poison the cached set.
+		const upstream = new URL(fetchedUrls()[0]);
+		expect(upstream.searchParams.get('limit')).toBe('100');
+
+		fetchMock.mockClear();
+		const last = await run({ t: 'search', q: 'bulk', apikey: SPONSOR_KEY, offset: '20' });
+
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(itemTitles(last)).toHaveLength(5);
+	});
+
 	it('pages out of the one cached set, so a second page costs nothing', async () => {
 		await run({ t: 'search', q: 'some release', apikey: SPONSOR_KEY, limit: '1' });
 		fetchMock.mockClear();
@@ -471,9 +511,13 @@ describe('GET /api/newznab/api search', () => {
 	});
 
 	it('answers 429 with a Newznab error document once the search budget is spent', async () => {
-		for (let i = 0; i < 30; i++) {
-			// Rotate the IP so only the per-key budget is being spent: 30 calls
-			// from one address would trip the pre-auth IP reject at 20 first.
+		// Read from the config so changing the limit cannot leave this asserting
+		// one that no longer exists.
+		const { rateLimit } = RATE_LIMIT_CONFIGS.newznabSearch;
+
+		for (let i = 0; i < rateLimit; i++) {
+			// Rotate the IP so only the per-key budget is being spent: a run of
+			// calls from one address would trip the pre-auth IP reject first.
 			testIp = `10.200.${i}.1`;
 			expect(
 				(
