@@ -58,6 +58,54 @@ describe('MainActions', () => {
 		expect(hashListLink.getAttribute('target')).toBe('_blank');
 	});
 
+	// Two of this row's three destinations dead-end without a provider account:
+	// /library, which `withAuth` sends a guest straight back from, and /albums,
+	// which pushes anyone with no Real-Debrid token into /realdebrid/login - the
+	// exact flow guest mode exists to skip. Only Hash lists survives, so the row
+	// narrows to it rather than keeping two holes.
+	it('leaves out both provider-only destinations for a guest', () => {
+		const { container } = render(
+			<MainActions
+				rdUser={null}
+				tbUser={null}
+				adUser={false}
+				pmUser={false}
+				ocUser={false}
+				dlUser={false}
+				isLoading={false}
+				isGuest={true}
+			/>
+		);
+
+		expect(screen.queryByRole('link', { name: /library/i })).toBeNull();
+		expect(container.querySelector('a[href="/albums"]')).toBeNull();
+		expect(screen.queryByRole('link', { name: /music/i })).toBeNull();
+
+		const hashListLink = screen.getByRole('link', { name: /hash lists/i });
+		expect(hashListLink.parentElement?.className).toContain('grid-cols-1');
+		expect(hashListLink.parentElement?.className).not.toContain('grid-cols-3');
+	});
+
+	it('keeps both for everybody else', () => {
+		const { container } = render(
+			<MainActions
+				rdUser={null}
+				tbUser={null}
+				adUser={false}
+				pmUser={false}
+				ocUser={false}
+				dlUser={false}
+				isLoading={false}
+			/>
+		);
+
+		expect(container.querySelector('a[href="/library"]')).not.toBeNull();
+		expect(container.querySelector('a[href="/albums"]')).not.toBeNull();
+		expect(container.querySelector('a[href="/library"]')?.parentElement?.className).toContain(
+			'grid-cols-3'
+		);
+	});
+
 	it('shows RD cast action when only RD user is authenticated', () => {
 		render(
 			<MainActions

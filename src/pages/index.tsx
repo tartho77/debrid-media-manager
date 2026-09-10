@@ -11,6 +11,7 @@ import { useCurrentUser, useDebridLogin } from '@/hooks/auth';
 import { useCastToken } from '@/hooks/castToken';
 import { useTorBoxCastToken } from '@/hooks/torboxCastToken';
 import { getTerms } from '@/utils/browseTerms';
+import { useGuestMode } from '@/utils/guestMode';
 import { handleLogout } from '@/utils/logout';
 import { checkPremiumStatus } from '@/utils/premiumCheck';
 import { genericToastOptions } from '@/utils/toastOptions';
@@ -58,6 +59,7 @@ function IndexPage() {
 		loginWithOffcloud,
 		loginWithDebridLink,
 	} = useDebridLogin();
+	const isGuest = useGuestMode();
 	const [browseTerms] = useState(getTerms(2));
 
 	// A provider has settled once it has answered - either a profile or an
@@ -192,6 +194,55 @@ function IndexPage() {
 	const actionButtonClasses =
 		'haptic-sm w-full rounded border-2 border-gray-500 bg-gray-800/30 px-4 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-gray-700/50';
 
+	// The six provider cards, so guest mode can fold them away without the JSX
+	// below having to exist twice.
+	const debridServiceCards = (
+		<>
+			<ServiceCard
+				service="rd"
+				error={rdError}
+				user={rdUser}
+				onTraktLogin={loginWithRealDebrid}
+				onLogout={async (prefix) => await handleLogout(prefix, router)}
+			/>
+			<ServiceCard
+				service="ad"
+				error={adError}
+				user={adUser}
+				onTraktLogin={loginWithAllDebrid}
+				onLogout={async (prefix) => await handleLogout(prefix, router)}
+			/>
+			<ServiceCard
+				service="tb"
+				error={tbError}
+				user={tbUser}
+				onTraktLogin={loginWithTorbox}
+				onLogout={async (prefix) => await handleLogout(prefix, router)}
+			/>
+			<ServiceCard
+				service="pm"
+				error={pmError}
+				user={pmUser}
+				onTraktLogin={loginWithPremiumize}
+				onLogout={async (prefix) => await handleLogout(prefix, router)}
+			/>
+			<ServiceCard
+				service="oc"
+				error={ocError}
+				user={ocUser}
+				onTraktLogin={loginWithOffcloud}
+				onLogout={async (prefix) => await handleLogout(prefix, router)}
+			/>
+			<ServiceCard
+				service="dl"
+				error={dlError}
+				user={dlUser}
+				onTraktLogin={loginWithDebridLink}
+				onLogout={async (prefix) => await handleLogout(prefix, router)}
+			/>
+		</>
+	);
+
 	return (
 		<div className="flex min-h-screen flex-col items-center justify-center bg-gray-900 p-4">
 			<Head>
@@ -214,6 +265,16 @@ function IndexPage() {
 					</div>
 
 					<div className="flex w-full max-w-md flex-col items-center gap-6">
+						{isGuest && (
+							<div className="w-full rounded border-2 border-amber-500/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-100">
+								<p className="font-medium">You are browsing as a guest</p>
+								<p className="mt-1 text-xs text-amber-200/80">
+									Search, settings and the indexer setup pages are open. Your
+									library, music, casting and transfers need a debrid account -
+									connect one below whenever you want them.
+								</p>
+							</div>
+						)}
 						<MainActions
 							rdUser={rdUser}
 							tbUser={tbUser}
@@ -222,6 +283,7 @@ function IndexPage() {
 							ocUser={!!ocUser}
 							dlUser={!!dlUser}
 							isLoading={isLoading}
+							isGuest={isGuest}
 						/>
 						<Link
 							href="/settings"
@@ -249,6 +311,21 @@ function IndexPage() {
 							</span>
 						</Link>
 						<Link
+							href="/jellyfin"
+							className="haptic-sm flex w-full items-center justify-between rounded border-2 border-pink-500/40 bg-gray-800/30 px-4 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-gray-700/50"
+						>
+							<span className="flex items-center">
+								<span
+									aria-hidden="true"
+									className="mr-2 inline-block h-2 w-2 shrink-0 rounded-full bg-pink-400"
+								/>
+								Jellyfin plugins
+							</span>
+							<span className="text-xs text-gray-400">
+								Your library in Jellyfin, for sponsors
+							</span>
+						</Link>
+						<Link
 							href="/torznab"
 							className="haptic-sm flex w-full items-center justify-between rounded border-2 border-pink-500/40 bg-gray-800/30 px-4 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-gray-700/50"
 						>
@@ -266,48 +343,22 @@ function IndexPage() {
 						<BrowseSection terms={browseTerms} />
 						<TraktSection traktUser={traktUser} />
 						<div className="grid w-full grid-cols-1 gap-3">
-							<ServiceCard
-								service="rd"
-								error={rdError}
-								user={rdUser}
-								onTraktLogin={loginWithRealDebrid}
-								onLogout={async (prefix) => await handleLogout(prefix, router)}
-							/>
-							<ServiceCard
-								service="ad"
-								error={adError}
-								user={adUser}
-								onTraktLogin={loginWithAllDebrid}
-								onLogout={async (prefix) => await handleLogout(prefix, router)}
-							/>
-							<ServiceCard
-								service="tb"
-								error={tbError}
-								user={tbUser}
-								onTraktLogin={loginWithTorbox}
-								onLogout={async (prefix) => await handleLogout(prefix, router)}
-							/>
-							<ServiceCard
-								service="pm"
-								error={pmError}
-								user={pmUser}
-								onTraktLogin={loginWithPremiumize}
-								onLogout={async (prefix) => await handleLogout(prefix, router)}
-							/>
-							<ServiceCard
-								service="oc"
-								error={ocError}
-								user={ocUser}
-								onTraktLogin={loginWithOffcloud}
-								onLogout={async (prefix) => await handleLogout(prefix, router)}
-							/>
-							<ServiceCard
-								service="dl"
-								error={dlError}
-								user={dlUser}
-								onTraktLogin={loginWithDebridLink}
-								onLogout={async (prefix) => await handleLogout(prefix, router)}
-							/>
+							{/* A guest declined all six of these on the way in, so
+							    they are folded away rather than dropped: the whole
+							    point of guest mode is that connecting a service
+							    later stays one click away. */}
+							{isGuest ? (
+								<details className="w-full rounded border-2 border-gray-500 bg-gray-800/30">
+									<summary className="haptic-sm cursor-pointer px-4 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-gray-700/50">
+										Connect a debrid service
+									</summary>
+									<div className="grid grid-cols-1 gap-3 p-3 pt-0">
+										{debridServiceCards}
+									</div>
+								</details>
+							) : (
+								debridServiceCards
+							)}
 							<ServiceCard
 								service="trakt"
 								error={traktError}
@@ -332,11 +383,16 @@ function IndexPage() {
 							>
 								Clear library cache
 							</button>
+							{/* One button, whoever is looking at it. Guest mode used
+							    to have its own narrower exit next to this one, and
+							    the pair read as the same action: both landed on
+							    /start, and the difference - whether a linked DMM API
+							    key survived - was invisible from the labels. */}
 							<button
 								onClick={async () => await handleLogout(undefined, router)}
 								className={actionButtonClasses}
 							>
-								Logout All
+								Clear browser data
 							</button>
 						</div>
 					</div>
